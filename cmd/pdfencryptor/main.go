@@ -1,22 +1,120 @@
 package main
 
 import (
-	"fyne.io/fyne/v2/app"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/widget"
+	"strings"
+
+	"github.com/dcapitajp/pdfencryptor/pkg/crypto"
+
+	"github.com/lxn/walk"
+	. "github.com/lxn/walk/declarative"
+	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
 )
 
+func hasPDFExtension(filename string) bool {
+	return strings.HasSuffix(strings.ToLower(filename), ".pdf")
+}
+
+func confForAlgorithm(aes bool, keyLength int) *model.Configuration {
+	c := model.NewDefaultConfiguration()
+	c.EncryptUsingAES = aes
+	c.EncryptKeyLength = keyLength
+	c.Cmd = model.ENCRYPT
+	return c
+}
+
+type App struct {
+	*walk.MainWindow
+	UserPW     *walk.LineEdit
+	UserPWVal  *walk.LineEdit
+	OwnerPW    *walk.LineEdit
+	OwnerPWVal *walk.LineEdit
+}
+
+type AppDialog struct {
+	dlg      *walk.Dialog
+	acceptPB *walk.PushButton
+}
+
+func (app *App) validateUserPassword() bool {
+	return app.UserPW.Text() == app.UserPW.Text()
+}
+
+func (app *App) validateOwnerPassword() bool {
+	return app.OwnerPW.Text() == app.OwnerPWVal.Text()
+}
+
+func (app *App) openDialog(title, msg string) (int, error) {
+	dialog := new(AppDialog)
+	return Dialog{
+		AssignTo:      &dialog.dlg,
+		Title:         title,
+		DefaultButton: &dialog.acceptPB,
+		MinSize:       Size{Width: 200, Height: 100},
+		Layout:        VBox{},
+		Children: []Widget{
+			Composite{
+				Layout: HBox{},
+				Children: []Widget{
+					Label{
+						Text: msg,
+					},
+				},
+			},
+		},
+	}.Run(app)
+}
+
 func main() {
-	a := app.New()
-	w := a.NewWindow("Hello")
+	app := &App{}
+	MainWindow{
+		AssignTo: &app.MainWindow,
+		Title:    "PdfEncryptor",
+		Size:     Size{Width: 320, Height: 240},
+		Layout:   VBox{},
 
-	hello := widget.NewLabel("Hello Fyne!")
-	w.SetContent(container.NewVBox(
-		hello,
-		widget.NewButton("Hi!", func() {
-			hello.SetText("Welcome :)")
-		}),
-	))
+		OnDropFiles: func(files []string) {
+			if !app.validateUserPassword() {
+				app.openDialog("エラー", "閲覧パスワードが一致しません")
+				return
+			}
 
-	w.ShowAndRun()
+			if !app.validateOwnerPassword() {
+				app.openDialog("エラー", "権限パスワードが一致しません")
+				return
+			}
+			if app.OwnerPW.Text() == "" {
+				// 何もしない
+				return
+			}
+			conf := confForAlgorithm(true, 256)
+			conf.UserPW = app.UserPW.Text()
+			conf.OwnerPW = app.OwnerPW.Text()
+			conf.Permissions = model.PermissionsAll
+			for _, f := range files {
+				if !hasPDFExtension(f) {
+					continue
+				}
+				if err := crypto.EncryptoInplace(f, conf); err != nil {
+					app.openDialog("Error", err.Error())
+					return
+				}
+
+			}
+		},
+		Children: []Widget{
+			Composite{Layout: Grid{Columns: 3},
+				Alignment: AlignHCenterVNear,
+				Children: []Widget{
+					Label{Text: "権限パスワード*"},
+					LineEdit{AssignTo: &app.OwnerPW, ColumnSpan: 2},
+					Label{Text: "権限パスワード(確認)*"},
+					LineEdit{AssignTo: &app.OwnerPWVal, ColumnSpan: 2},
+					Label{Text: "閲覧パスワード:"},
+					LineEdit{AssignTo: &app.UserPW, ColumnSpan: 2},
+					Label{Text: "閲覧パスワード(確認): "},
+					LineEdit{AssignTo: &app.UserPWVal, ColumnSpan: 2},
+				},
+			},
+		},
+	}.Run()
 }
