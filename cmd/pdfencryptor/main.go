@@ -3,7 +3,7 @@ package main
 import (
 	"strings"
 
-	"github.com/dcapitajp/pdfencryptor/pkg/crypto"
+	"github.com/dcapitajp/pdftools/pkg/crypto"
 
 	"github.com/lxn/walk"
 	. "github.com/lxn/walk/declarative"

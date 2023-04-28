@@ -1,4 +1,4 @@
-module github.com/dcapitajp/pdfencryptor
+module github.com/dcapitajp/pdftools
 
 go 1.20
 
