@@ -68,8 +68,8 @@ func main() {
 	app := &App{}
 	MainWindow{
 		AssignTo: &app.MainWindow,
-		Title:    "PdfEncryptor",
-		Size:     Size{Width: 320, Height: 240},
+		Title:    "PDFパスワード保護",
+		Size:     Size{Width: 320, Height: 180},
 		Layout:   VBox{},
 
 		OnDropFiles: func(files []string) {
@@ -82,10 +82,14 @@ func main() {
 				app.openDialog("エラー", "権限パスワードが一致しません")
 				return
 			}
-			if app.OwnerPW.Text() == "" {
+			if app.UserPW.Text() == "" {
 				// 何もしない
 				return
 			}
+			if app.OwnerPW.Text() == "" {
+				app.OwnerPW.SetText(app.UserPW.Text())
+			}
+
 			conf := confForAlgorithm(true, 256)
 			conf.UserPW = app.UserPW.Text()
 			conf.OwnerPW = app.OwnerPW.Text()
@@ -94,7 +98,7 @@ func main() {
 				if !hasPDFExtension(f) {
 					continue
 				}
-				if err := crypto.EncryptoInplace(f, conf); err != nil {
+				if err := crypto.EncryptInplace(f, conf); err != nil {
 					app.openDialog("Error", err.Error())
 					return
 				}
@@ -105,16 +109,17 @@ func main() {
 			Composite{Layout: Grid{Columns: 3},
 				Alignment: AlignHCenterVNear,
 				Children: []Widget{
-					Label{Text: "権限パスワード*"},
-					LineEdit{AssignTo: &app.OwnerPW, ColumnSpan: 2},
-					Label{Text: "権限パスワード(確認)*"},
-					LineEdit{AssignTo: &app.OwnerPWVal, ColumnSpan: 2},
-					Label{Text: "閲覧パスワード:"},
+					Label{Text: "閲覧パスワード*"},
 					LineEdit{AssignTo: &app.UserPW, ColumnSpan: 2},
-					Label{Text: "閲覧パスワード(確認): "},
+					Label{Text: "閲覧パスワード(確認)*"},
 					LineEdit{AssignTo: &app.UserPWVal, ColumnSpan: 2},
+					Label{Text: "権限パスワード"},
+					LineEdit{AssignTo: &app.OwnerPW, ColumnSpan: 2},
+					Label{Text: "権限パスワード(確認)"},
+					LineEdit{AssignTo: &app.OwnerPWVal, ColumnSpan: 2},
 				},
 			},
+			TextLabel{Text: "権限パスワードを指定しない場合は、閲覧パスワードがセットされます"},
 		},
 	}.Run()
 }
